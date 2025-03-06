@@ -19,24 +19,27 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-// 注册Google搜索工具
 server.tool(
   "google-search",
-  "使用Google搜索引擎查询实时网络信息，返回包含标题、链接和摘要的搜索结果。适用于需要获取最新信息、查找特定主题资料、研究当前事件或验证事实的场景。结果以JSON格式返回，包含查询内容和匹配结果列表。",
+  "실시간 웹 정보를 검색하기 위해 Google 검색 엔진을 사용하며, 제목, 링크 및 요약이 포함된 검색 결과를 반환합니다. 최신 정보 얻기, 특정 주제에 대한 자료 찾기, 현재 이벤트 연구 또는 사실 확인에 적합합니다. 결과는 JSON 형식으로 반환되며 쿼리 내용과 일치하는 결과 목록이 포함됩니다.",
   {
     query: z
       .string()
       .describe(
-        "搜索查询字符串。为获得最佳结果：1)使用具体关键词而非模糊短语；2)可使用引号\"精确短语\"强制匹配；3)使用site:域名限定特定网站；4)使用-排除词过滤结果；5)使用OR连接备选词；6)优先使用专业术语；7)控制在2-5个关键词以获得平衡结果。例如:'气候变化 研究报告 2024 site:gov -观点' 或 '\"机器学习算法\" 教程 (Python OR Julia)'"
+        "검색 쿼리 문자열. 최상의 결과를 얻으려면: 1)모호한 문구가 아닌 구체적인 키워드 사용; 2)따옴표\"정확한 문구\"로 강제 일치 가능; 3)site:도메인으로 특정 웹사이트 제한; 4)-제외어로 결과 필터링; 5)OR로 대체어 연결; 6)전문 용어 우선 사용; 7)균형 잡힌 결과를 위해 2-5개 키워드 사용. 예: '기후변화 연구보고서 2024 site:gov -의견' 또는 '\"머신러닝 알고리즘\" 튜토리얼 (Python OR Julia)'"
       ),
     limit: z
       .number()
       .optional()
-      .describe("返回的搜索结果数量 (默认: 10，建议范围: 1-20)"),
+      .describe("반환할 검색 결과 수 (기본값: 10, 권장 범위: 1-20)"),
     timeout: z
       .number()
       .optional()
-      .describe("搜索操作的超时时间(毫秒) (默认: 30000，可根据网络状况调整)"),
+      .describe("검색 작업 제한 시간(밀리초) (기본값: 30000, 네트워크 상황에 따라 조정 가능)"),
+    locale: z
+      .string()
+      .optional()
+      .describe("검색 결과 언어 (예: ko-KR, en-US, 기본값: 자동 감지)"),
   },
   async (params) => {
     try {
@@ -62,13 +65,13 @@ server.tool(
         logger.warn(warningMessage);
       }
 
-      // 使用全局浏览器实例执行搜索
       const results = await googleSearch(
         query,
         {
           limit: limit,
           timeout: timeout,
           stateFile: stateFilePath,
+          locale: params.locale, // 언어 설정 추가
         },
         globalBrowser
       );

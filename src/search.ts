@@ -34,7 +34,7 @@ function getHostMachineConfig(userLocale?: string): FingerprintConfig {
   // 获取系统时区
   // Node.js 不直接提供时区信息，但可以通过时区偏移量推断
   const timezoneOffset = new Date().getTimezoneOffset();
-  let timezoneId = "Asia/Shanghai"; // 默认使用上海时区
+  let timezoneId = "Asia/Seoul"; // 默认使用上海时区
 
   // 根据时区偏移量粗略推断时区
   // 时区偏移量是以分钟为单位，与UTC的差值，负值表示东区
@@ -42,8 +42,8 @@ function getHostMachineConfig(userLocale?: string): FingerprintConfig {
     // UTC+8 (中国、新加坡、香港等)
     timezoneId = "Asia/Shanghai";
   } else if (timezoneOffset <= -540) {
-    // UTC+9 (日本、韩国等)
-    timezoneId = "Asia/Tokyo";
+    // UTC+9
+    timezoneId = "Asia/Seoul";
   } else if (timezoneOffset <= -420 && timezoneOffset > -480) {
     // UTC+7 (泰国、越南等)
     timezoneId = "Asia/Bangkok";
@@ -99,6 +99,44 @@ function getHostMachineConfig(userLocale?: string): FingerprintConfig {
 }
 
 /**
+ * 시스템 locale에서 가장 적합한 Google 검색 locale을 결정
+ * @param userLocale 사용자가 지정한 locale
+ * @returns Google 검색에 사용할 locale 문자열
+ */
+function determineSearchLocale(userLocale?: string): string {
+  // 사용자가 명시적으로 locale을 지정한 경우
+  if (userLocale && userLocale !== 'auto') {
+    return userLocale;
+  }
+  
+  // 시스템 locale 가져오기
+  const systemLocale = process.env.LANG || process.env.LANGUAGE || process.env.LC_ALL || 'en-US';
+  
+  // 한국어 locale 감지
+  if (systemLocale.startsWith('ko') || systemLocale.includes('KR') || systemLocale.includes('Korea')) {
+    return 'ko-KR';
+  }
+  
+  // 중국어 locale 감지
+  if (systemLocale.startsWith('zh') || systemLocale.includes('CN') || systemLocale.includes('China')) {
+    return 'zh-CN';
+  }
+  
+  // 일본어 locale 감지
+  if (systemLocale.startsWith('ja') || systemLocale.includes('JP') || systemLocale.includes('Japan')) {
+    return 'ja-JP';
+  }
+  
+  // 영어 locale은 기본값
+  if (systemLocale.startsWith('en')) {
+    return 'en-US';
+  }
+  
+  // 기타 locale은 시스템 locale 그대로 사용
+  return systemLocale;
+}
+
+/**
  * 执行Google搜索并返回结果
  * @param query 搜索关键词
  * @param options 搜索选项
@@ -109,14 +147,21 @@ export async function googleSearch(
   options: CommandOptions = {},
   existingBrowser?: Browser
 ): Promise<SearchResponse> {
-  // 设置默认选项
+
+    // 옵션 처리 부분
   const {
     limit = 10,
     timeout = 60000,
     stateFile = "./browser-state.json",
     noSaveState = false,
-    locale = "zh-CN", // 默认使用中文
+    locale = 'auto', // 기본값은 자동 감지
   } = options;
+
+  // 검색 locale 결정
+  const searchLocale = determineSearchLocale(locale);
+  logger.info({ locale: searchLocale }, "검색에 사용할 locale");
+
+  options.locale = searchLocale;
 
   // 忽略传入的headless参数，总是以无头模式启动
   let useHeadless = true;
@@ -162,22 +207,6 @@ export async function googleSearch(
     "Desktop Safari",
   ];
 
-  // 时区列表
-  const timezoneList = [
-    "America/New_York",
-    "Europe/London",
-    "Asia/Shanghai",
-    "Europe/Berlin",
-    "Asia/Tokyo",
-  ];
-
-  // Google域名列表
-  const googleDomains = [
-    "https://www.google.com",
-    "https://www.google.co.uk",
-    "https://www.google.ca",
-    "https://www.google.com.au",
-  ];
 
   // 获取随机设备配置或使用保存的配置
   const getDeviceConfig = (): [string, any] => {
@@ -378,22 +407,7 @@ export async function googleSearch(
     });
 
     try {
-      // 使用保存的Google域名或随机选择一个
-      let selectedDomain: string;
-      if (savedState.googleDomain) {
-        selectedDomain = savedState.googleDomain;
-        logger.info({ domain: selectedDomain }, "使用保存的Google域名");
-      } else {
-        selectedDomain =
-          googleDomains[Math.floor(Math.random() * googleDomains.length)];
-        // 保存选择的域名
-        savedState.googleDomain = selectedDomain;
-        logger.info({ domain: selectedDomain }, "随机选择Google域名");
-      }
-
-      logger.info("正在访问Google搜索页面...");
-
-      // 访问Google搜索页面
+      let selectedDomain: string = "https://www.google.com"
       const response = await page.goto(selectedDomain, {
         timeout,
         waitUntil: "networkidle",
