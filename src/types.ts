@@ -26,3 +26,15 @@ export interface CommandOptions {
   noSaveState?: boolean;
   locale?: string; // 검색 결과 언어, 기본값은 자동 감지(auto) 또는 시스템 언어
 }
+
+/**
+ * HTML响应接口 - 用于获取原始搜索页面HTML
+ */
+export interface HtmlResponse {
+  query: string;    // 搜索查询
+  html: string;     // 页面HTML内容（已清理，不包含CSS和JavaScript）
+  url: string;      // 搜索结果页面URL
+  savedPath?: string; // 可选，如果HTML保存到文件，则为保存路径
+  screenshotPath?: string; // 可选，网页截图保存路径
+  originalHtmlLength?: number; // 原始HTML长度（包含CSS和JavaScript）
+}
